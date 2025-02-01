@@ -1,4 +1,14 @@
-import { registerRootComponent } from 'expo';
-import App from '../App';
+import React from 'react';
+import { SafeAreaView } from 'react-native';
+import SearchInterests from '../src/components/SearchInterests';
 
-registerRootComponent(App);
+// import App from "../App";
+
+export default function Page() {
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <SearchInterests />
+    </SafeAreaView>
+  );
+}
+

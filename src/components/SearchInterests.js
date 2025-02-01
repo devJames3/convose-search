@@ -1,16 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, TextInput, FlatList, Text, ActivityIndicator, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, TextInput, FlatList, Text, Image, Animated } from 'react-native';
 import { fetchInterests } from '../services/api';
 import styles from '../styles/styles';
 
-/**
- * Generates a unique but consistent color for each item based on its ID and Name.
- * The same item will always have the same color.
- */
 const getColorForItem = (id, name) => {
   const colors = ['#FF5733', '#33A1FF', '#33FF57', '#FF33A1', '#A133FF', '#FFC300', '#FF6347', '#4682B4', '#20B2AA', '#FF1493'];
 
-  // Combine id and name for a more unique and consistent hash
   let hash = 0;
   const combined = id + name;
   for (let i = 0; i < combined.length; i++) {
@@ -20,52 +15,110 @@ const getColorForItem = (id, name) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
+// Custom Skeleton Loader
+const SkeletonLoader = () => {
+  const opacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <View style={styles.skeletonContainer}>
+      {[...Array(5)].map((_, index) => (
+        <Animated.View key={index} style={[styles.skeletonItem, { opacity }]} />
+      ))}
+    </View>
+  );
+};
+
 const SearchInterests = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [from, setFrom] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [cache, setCache] = useState({});
 
   useEffect(() => {
-    setResults([]);
-    setFrom(0);
-    setHasMore(true);
-  }, [query]);
+    if (query === '') {
+      setResults([]);
+      setFrom(0);
+      setHasMore(true);
+      return;
+    }
 
-  useEffect(() => {
     const fetchData = async () => {
-      if (query.length > 0) {
-        setLoading(true);
-        const data = await fetchInterests(query, 10, from);
-        if (data.length === 0) setHasMore(false);
-        setResults((prev) => [...prev, ...data]);
+      setLoading(true);
+
+      if (cache[query]) {
+        setResults(cache[query]);
         setLoading(false);
+      } else {
+        const data = await fetchInterests(query, 20, 0);
+        setResults((prevResults) => (JSON.stringify(prevResults) !== JSON.stringify(data) ? data : prevResults));
+        setCache((prev) => ({ ...prev, [query]: data }));
+        setHasMore(data.length > 0);
+        setFrom(20);
       }
+
+      setLoading(false);
     };
 
     const timer = setTimeout(fetchData, 500);
     return () => clearTimeout(timer);
-  }, [query, from]);
+
+  }, [query]);
+
+  const loadMore = async () => {
+    if (!hasMore || loading) return;
+
+    setLoading(true);
+    const data = await fetchInterests(query, 10, from);
+    if (data.length === 0) {
+      setHasMore(false);
+    } else {
+      setResults((prev) => {
+        const uniqueResults = [...new Map([...prev, ...data].map(item => [item.id, item])).values()];
+        return uniqueResults;
+      });
+
+      setCache((prev) => ({
+        ...prev,
+        [query]: [...prev[query] || [], ...data]
+      }));
+
+      setFrom((prev) => prev + 10);
+    }
+
+    setLoading(false);
+  };
 
   const formatInterestName = (name) => {
     const match = name.match(/(.*?)\s*\[(.*?)\]/);
     return match ? { main: match[1], secondary: match[2] } : { main: name, secondary: null };
   };
 
-  const loadMore = () => {
-    if (hasMore && !loading) setFrom((prev) => prev + 10);
-  };
-
   return (
     <View style={styles.container}>
+
+      <Text style={styles.title}>Interest Search</Text>
+
+      {/* Show Skeleton Loader when loading */}
+      {loading && from === 0 ? <SkeletonLoader /> : null}
+
       {/* FlatList positioned above the search bar */}
       <FlatList
         data={results}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.id.toString()} 
         renderItem={({ item }) => {
           const { main, secondary } = formatInterestName(item.name);
-          const bgColor = getColorForItem(item.id, item.name); // Pass both id and name
+          const bgColor = getColorForItem(item.id, item.name);
 
           return (
             <View style={styles.listItem}>
@@ -85,28 +138,26 @@ const SearchInterests = () => {
         }}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        // Reverse the FlatList to show from bottom to top
         inverted
       />
 
-      {/* Centered Search Bar */}
+      {/* Search Bar */}
       <View style={styles.searchContainer}>
-
-        {/* Loading Indicator */}
-        {loading && from === 0 ? (
-          <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
-        ) : null}
-
-
         <TextInput
           style={styles.input}
           placeholder="Search interests..."
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(text) => {
+            setQuery(text);
+            if (!text) {
+              setResults([]);
+              setCache({});
+              setFrom(0);
+              setHasMore(false);
+            }
+          }}
         />
       </View>
-
-      
     </View>
   );
 };
