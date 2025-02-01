@@ -71,22 +71,6 @@ To get started, clone the repository and install dependencies.
 
 Contributions are welcome! Please fork the repository, create a feature branch, and submit a pull request.
 
-### To Do
-
-- Improve performance with larger datasets
-- Implement error handling for API failures
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-### Thank you for using the Interest Search App!
-
-```
-
----
-
-This README provides a clear overview of the project, installation instructions, usage, and code details. It will be a great starting point for anyone interested in the app. Let me know if you need any further changes!
-```
