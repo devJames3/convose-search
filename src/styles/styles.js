@@ -98,5 +98,12 @@ export default StyleSheet.create({
     borderRadius: 8,
     marginBottom: 10,
     alignSelf: 'center',
-  }
+  },
+  errorText: {
+    color: '#D9534F',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+    fontWeight: 'bold',
+    },
 });

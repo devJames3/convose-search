@@ -44,27 +44,39 @@ const SearchInterests = () => {
   const [from, setFrom] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [cache, setCache] = useState({});
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (query === '') {
       setResults([]);
       setFrom(0);
       setHasMore(true);
+      setError(null);
       return;
     }
 
     const fetchData = async () => {
       setLoading(true);
+      setError(null); 
 
       if (cache[query]) {
         setResults(cache[query]);
         setLoading(false);
       } else {
-        const data = await fetchInterests(query, 20, 0);
-        setResults((prevResults) => (JSON.stringify(prevResults) !== JSON.stringify(data) ? data : prevResults));
-        setCache((prev) => ({ ...prev, [query]: data }));
-        setHasMore(data.length > 0);
-        setFrom(20);
+        try {
+          const data = await fetchInterests(query, 20, 0);
+
+          if(data.length === 0) {
+            setError('No interests found for this search term.');
+          }else {
+            setResults((prevResults) => (JSON.stringify(prevResults) !== JSON.stringify(data) ? data : prevResults));
+            setCache((prev) => ({ ...prev, [query]: data }));
+            setHasMore(data.length > 0);
+            setFrom(20);
+          }
+        }catch(err) {
+          setError('An error occurred while fetching the data.');
+        }
       }
 
       setLoading(false);
@@ -112,6 +124,9 @@ const SearchInterests = () => {
       {/* Show Skeleton Loader when loading */}
       {loading && from === 0 ? <SkeletonLoader /> : null}
 
+      {/* Error message */}
+      {error && <Text style={styles.errorText}>{error}</Text>}
+
       <FlatList
         data={results}
         keyExtractor={(item) => item.id.toString()} 
@@ -153,6 +168,7 @@ const SearchInterests = () => {
               setCache({});
               setFrom(0);
               setHasMore(false);
+              setError(null);
             }
           }}
         />
