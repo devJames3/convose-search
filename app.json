@@ -5,6 +5,14 @@
       "expo-router"
     ],
     "name": "convose-search",
-    "slug": "convose-search"
+    "slug": "convose-search",
+    "android": {
+      "package": "com.devjames33.convosesearch"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e4b0bd4a-feac-4b51-954d-11cc47674b97"
+      }
+    }
   }
 }
