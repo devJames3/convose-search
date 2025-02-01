@@ -107,12 +107,11 @@ const SearchInterests = () => {
   return (
     <View style={styles.container}>
 
-      <Text style={styles.title}>Interest Search</Text>
+      <Text style={styles.title}>Convose Interest Search</Text>
 
       {/* Show Skeleton Loader when loading */}
       {loading && from === 0 ? <SkeletonLoader /> : null}
 
-      {/* FlatList positioned above the search bar */}
       <FlatList
         data={results}
         keyExtractor={(item) => item.id.toString()} 
