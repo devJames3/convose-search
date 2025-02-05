@@ -47,13 +47,13 @@ const SearchInterests = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (query === '') {
-      setResults([]);
-      setFrom(0);
-      setHasMore(true);
-      setError(null);
-      return;
-    }
+    // if (query === '') {
+    //   setResults([]);
+    //   setFrom(0);
+    //   setHasMore(true);
+    //   setError(null);
+    //   return;
+    // }
 
     const fetchData = async () => {
       setLoading(true);
@@ -62,17 +62,23 @@ const SearchInterests = () => {
       if (cache[query]) {
         setResults(cache[query]);
         setLoading(false);
-      } else {
+      } else{
         try {
-          const data = await fetchInterests(query, 20, 0);
+          popularInterests = searchInterestsInCache(cache[""], query);
+          setResults(popularInterests);
+          const data = await fetchInterests(query, 15, 0);
 
           if(data.length === 0) {
             setError('No interests found for this search term.');
           }else {
             setResults((prevResults) => (JSON.stringify(prevResults) !== JSON.stringify(data) ? data : prevResults));
+            console.log({
+              "term" : query,
+              "data" : results
+            })
             setCache((prev) => ({ ...prev, [query]: data }));
             setHasMore(data.length > 0);
-            setFrom(20);
+            setFrom(15);
           }
         }catch(err) {
           setError('An error occurred while fetching the data.');
@@ -115,6 +121,15 @@ const SearchInterests = () => {
     const match = name.match(/(.*?)\s*\[(.*?)\]/);
     return match ? { main: match[1], secondary: match[2] } : { main: name, secondary: null };
   };
+
+  const searchInterestsInCache = (interests, searchTerm) => {
+    if (!searchTerm) return [];
+
+    return interests.filter(interest => 
+      interest.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
 
   return (
     <View style={styles.container}>
@@ -165,7 +180,7 @@ const SearchInterests = () => {
             setQuery(text);
             if (!text) {
               setResults([]);
-              setCache({});
+              // setCache({});
               setFrom(0);
               setHasMore(false);
               setError(null);

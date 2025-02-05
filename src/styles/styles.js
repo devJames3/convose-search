@@ -16,7 +16,7 @@ export default StyleSheet.create({
     letterSpacing: 1,
   },
   searchContainer: {
-    marginBottom: 250,
+    marginBottom: 50,
     marginHorizontal: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
