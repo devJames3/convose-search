@@ -6,16 +6,12 @@ import styles from '../styles/styles';
 const getColorForItem = (id, name) => {
   const colors = ['#FF5733', '#33A1FF', '#33FF57', '#FF33A1', '#A133FF', '#FFC300', '#FF6347', '#4682B4', '#20B2AA', '#FF1493'];
 
-  let hash = 0;
-  const combined = id + name;
-  for (let i = 0; i < combined.length; i++) {
-    hash = combined.charCodeAt(i) + ((hash << 5) - hash);
-  }
+  const hash = [...(id + name)].reduce((acc, char) => acc * 31 + char.charCodeAt(0), 0);
 
   return colors[Math.abs(hash) % colors.length];
 };
 
-// Custom Skeleton Loader
+// Custom Skeleton Loader.
 const SkeletonLoader = () => {
   const opacity = useRef(new Animated.Value(0.3)).current;
 
@@ -58,7 +54,7 @@ const SearchInterests = () => {
       } else {
         try {
           
-          const data = await fetchInterests(query, 20, 0);
+          const data = await fetchInterests(query, 15, 0);
 
           if(data.length === 0) {
             setError('No interests found for this search term.');
@@ -66,7 +62,7 @@ const SearchInterests = () => {
             setResults((prevResults) => (JSON.stringify(prevResults) !== JSON.stringify(data) ? data : prevResults));
             setCache((prev) => ({ ...prev, [query]: data }));
             setHasMore(data.length > 0);
-            setFrom(20);
+            setFrom(15);
           }
         }catch(err) {
           setError('An error occurred while fetching the data.');
@@ -106,21 +102,13 @@ const SearchInterests = () => {
   };
 
   const formatInterestName = (name) => {
-    const match = name.match(/(.*?)\s*\[(.*?)\]/);
-    return match ? { main: match[1], secondary: match[2] } : { main: name, secondary: null };
+    const match = /\s*\[(.*?)\]/.exec(name);
+    return { 
+      main: match ? name.replace(match[0], "").trim() : name, 
+      secondary: match ? match[1] : null 
+    };
   };
 
-  const searchInterestsInCache = (interests, searchTerm) => {
-    if (!searchTerm) return [];
-
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-
-    const filtered = interests
-    .filter(interest => interest.name.toLowerCase().startsWith(lowerCaseSearchTerm))
-    .sort((a, b) => (b.match || 0) - (a.match || 0)); // Sort by match (popularity)
-
-    return filtered;
-  };
 
   return (
     <View style={styles.container}>
