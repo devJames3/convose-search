@@ -14,6 +14,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "newArchEnabled": true ,
     "extra": {
       "eas": {
         "projectId": "e4b0bd4a-feac-4b51-954d-11cc47674b97"

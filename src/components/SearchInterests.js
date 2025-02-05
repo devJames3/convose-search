@@ -3,12 +3,14 @@ import { View, TextInput, FlatList, Text, Image, Animated } from 'react-native';
 import { fetchInterests } from '../services/api';
 import styles from '../styles/styles';
 
-
-// random colors for avatar
 const getColorForItem = (id, name) => {
   const colors = ['#FF5733', '#33A1FF', '#33FF57', '#FF33A1', '#A133FF', '#FFC300', '#FF6347', '#4682B4', '#20B2AA', '#FF1493'];
 
-  const hash = [...(id + name)].reduce((acc, char) => acc * 31 + char.charCodeAt(0), 0);
+  let hash = 0;
+  const combined = id + name;
+  for (let i = 0; i < combined.length; i++) {
+    hash = combined.charCodeAt(i) + ((hash << 5) - hash);
+  }
 
   return colors[Math.abs(hash) % colors.length];
 };
@@ -37,83 +39,37 @@ const SkeletonLoader = () => {
 
 const SearchInterests = () => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState({});
+  const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [from, setFrom] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [cache, setCache] = useState({});
   const [error, setError] = useState(null);
-  const [initialLoad, setInitialLoad] = useState(true)
-
-  const prevQueryRef = useRef("");
 
   useEffect(() => {
-    
+  
+
     const fetchData = async () => {
       setError(null); 
 
-      const cacheResult = cache[query?.toLowerCase()] || (cache[query?.toLowerCase()[0]] ? cache[query?.toLowerCase()[0]][query?.toLowerCase()] : null);
-      if (cacheResult) {
-        console.log("I am using cache")
-        if(query.length > 1){
-          console.log("Iam in > 1 query")
-          setCache((prev) => {
-            console.log("first letter", query.toLowerCase()[0])
-            console.log({"prev": prev[query.toLowerCase()[0]][query.toLowerCase()]})
-            setResults(prev[query.toLowerCase()[0]][query.toLowerCase()]);
-            return prev
-          })
-        }else {
-
-          setCache((prev) => {
-              setResults(prev[query.toLowerCase()][query.toLowerCase()]);
-              return prev
-          })
-        }
+      if (cache[query]) {
+        setResults(cache[query]);
         setLoading(false);
-      } else{
+      } else {
         try {
-          if(cache[""]){
-            let popularInterests = searchInterestsInCache(cache[""][""], query);
-            setResults(popularInterests);
-          }
-
-          if (query.length > prevQueryRef.current.length && query !== "" && query.length > 1) {
-            console.log("cache int", cache[query.toLowerCase()[0]][query.toLowerCase().slice(0, -1)], query.toLowerCase()[0], query.toLowerCase().slice(0, -1))
-            console.log(cache)
-            let cacheInterests = searchInterestsInCache(cache[query.toLowerCase()[0]][query.toLowerCase().slice(0, -1)], query.toLowerCase().slice(0, -1))
-            setResults(cacheInterests);
-          }
-
-          prevQueryRef.current = query;
           
-          setLoading(true)
-          const data = await fetchInterests(query, 15, 0);
+          const data = await fetchInterests(query, 20, 0);
 
           if(data.length === 0) {
             setError('No interests found for this search term.');
           }else {
             setResults((prevResults) => (JSON.stringify(prevResults) !== JSON.stringify(data) ? data : prevResults));
-            console.log({results})
-            if (query.length > 1){
-              console.log(query.length)
-              console.log("I am using >1")
-              setCache((prev) => ({ ...prev, [query.toLowerCase()[0]]: { 
-                ...prev[query.toLowerCase()[0]], [query.toLowerCase()] : data 
-                } 
-              }));
-              console.log(cache)
-            }else {
-              setCache((prev) => ({ ...prev, [query.toLowerCase()]: {
-                ...prev[query.toLowerCase()], [query.toLowerCase()] : data} }));
-              console.log(cache)
-
-            }
+            setCache((prev) => ({ ...prev, [query]: data }));
             setHasMore(data.length > 0);
-            setFrom(15);
+            setFrom(20);
           }
         }catch(err) {
-          setError('An error occurred while fetching the data.' + err);
+          setError('An error occurred while fetching the data.');
         }
       }
 
@@ -128,28 +84,20 @@ const SearchInterests = () => {
   const loadMore = async () => {
     if (!hasMore || loading) return;
 
-    // setLoading(true);
+    setLoading(true);
     const data = await fetchInterests(query, 10, from);
     if (data.length === 0) {
       setHasMore(false);
     } else {
       setResults((prev) => {
-        const merged = [...prev, ...data];
-        const uniqueResults = Array.from(new Map(merged.map(item => [item.id, item])).values());
+        const uniqueResults = [...new Map([...prev, ...data].map(item => [item.id, item])).values()];
         return uniqueResults;
       });
 
-      if (query.length > 1){
-        setCache((prev) => ({
-          ...prev, 
-          [query.toLowerCase()[0]]: { [query.toLowerCase()] : [...prev[query.toLowerCase()[0]][query.toLowerCase()], ...data]} 
-        }));
-      }else {
-        setCache((prev) => ({ 
-          ...prev, 
-          [query.toLowerCase()]: { [query.toLowerCase()] : [...prev[query.toLowerCase()][query.toLowerCase()], ...data] } 
-        }));
-      }
+      setCache((prev) => ({
+        ...prev,
+        [query]: [...prev[query] || [], ...data]
+      }));
 
       setFrom((prev) => prev + 10);
     }
@@ -157,13 +105,9 @@ const SearchInterests = () => {
     setLoading(false);
   };
 
-  // Extract the Main interest name and secondary interests
   const formatInterestName = (name) => {
-    const match = /\s*\[(.*?)\]/.exec(name);
-    return { 
-      main: match ? name.replace(match[0], "").trim() : name, 
-      secondary: match ? match[1] : null 
-    };
+    const match = name.match(/(.*?)\s*\[(.*?)\]/);
+    return match ? { main: match[1], secondary: match[2] } : { main: name, secondary: null };
   };
 
   const searchInterestsInCache = (interests, searchTerm) => {
@@ -172,16 +116,11 @@ const SearchInterests = () => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
 
     const filtered = interests
-      .filter(interest => interest.name.toLowerCase().startsWith(lowerCaseSearchTerm))
-      .sort((a, b) => (b.match || 0) - (a.match || 0)); // Sort by match (popularity)
-
-    // if (filtered.length === 0) {
-    //   setInitialLoad(true).
+    .filter(interest => interest.name.toLowerCase().startsWith(lowerCaseSearchTerm))
+    .sort((a, b) => (b.match || 0) - (a.match || 0)); // Sort by match (popularity)
 
     return filtered;
   };
-
-
 
   return (
     <View style={styles.container}>
@@ -189,7 +128,7 @@ const SearchInterests = () => {
       <Text style={styles.title}>Convose Interest Search</Text>
 
       {/* Show Skeleton Loader when loading */}
-      {loading && initialLoad ? <SkeletonLoader /> : null}
+      {loading && from === 0 ? <SkeletonLoader /> : null}
 
       {/* Error message */}
       {error && <Text style={styles.errorText}>{error}</Text>}
@@ -225,19 +164,16 @@ const SearchInterests = () => {
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <TextInput
-        ref={prevQueryRef}
           style={styles.input}
           placeholder="Search interests..."
           value={query}
           onChangeText={(text) => {
             setQuery(text);
-            setInitialLoad(false);
             if (!text) {
               setResults([]);
               setFrom(0);
               setHasMore(false);
               setError(null);
-              setInitialLoad(false);
             }
           }}
         />
